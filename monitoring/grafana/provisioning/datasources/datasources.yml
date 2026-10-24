@@ -1,6 +1,7 @@
 # -------------------------------------------------------------
 # DTC245200753 - Đề 31: Hệ thống Thư viện Ảnh Gallery
 # Grafana Datasources Provisioning (monitoring/grafana/provisioning/datasources/datasources.yml)
+# Tự động nạp Prometheus (Metrics) và Loki (Logs)
 # -------------------------------------------------------------
 
 apiVersion: 1
@@ -15,3 +16,12 @@ datasources:
     jsonData:
       timeInterval: 5s
       httpMethod: POST
+
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    isDefault: false
+    editable: false
+    jsonData:
+      maxLines: 1000

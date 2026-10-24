@@ -363,16 +363,63 @@
       ],
       "title": "Mức Sử Dụng RAM Từng Container (Bytes)",
       "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 33 },
+      "id": 400,
+      "title": "📋 4. NHẬT KÝ HỆ THỐNG THỜI GIAN THỰC (GRAFANA LOKI LOGS)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 34 },
+      "id": 11,
+      "options": {
+        "enableLogDetails": true,
+        "showLabels": false,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "Loki" },
+          "expr": "{service=\"nginx\"}",
+          "refId": "A"
+        }
+      ],
+      "title": "Nginx Web Access Logs (Thời Gian Thực)",
+      "type": "logs"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 34 },
+      "id": 12,
+      "options": {
+        "enableLogDetails": true,
+        "showLabels": false,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "Loki" },
+          "expr": "{service=\"nginx\"} |~ \"(403|404|500)\"",
+          "refId": "A"
+        }
+      ],
+      "title": "Nginx Security & Error Logs (403, 404, 500)",
+      "type": "logs"
     }
   ],
   "refresh": "5s",
   "schemaVersion": 39,
-  "tags": ["gallery", "monitoring", "dtc245200753", "prometheus"],
+  "tags": ["gallery", "monitoring", "dtc245200753", "prometheus", "loki"],
   "templating": { "list": [] },
   "time": { "from": "now-15m", "to": "now" },
   "timepicker": { "refresh_intervals": ["5s", "10s", "30s", "1m"] },
   "timezone": "browser",
   "title": "Hệ Thống Thư Viện Ảnh Gallery - Giám Sát Tổng Hợp",
   "uid": "gallery-overview",
-  "version": 1
+  "version": 2
 }

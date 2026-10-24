@@ -1,0 +1,57 @@
+# -------------------------------------------------------------
+# DTC245200753 - Lê Minh Trang - CNTT K23M
+# Đề 31: Hệ thống Thư viện Ảnh Gallery
+# Cấu hình Promtail 2.9.8 (logging/promtail/promtail-config.yaml)
+# Thu thập log Nginx & PHP App đẩy về Loki
+# Nhãn thiết kế low-cardinality chống bùng nổ chỉ mục (Index)
+# -------------------------------------------------------------
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: info
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+    batchwait: 1s
+    batchsize: 102400
+
+scrape_configs:
+  # 1. Thu thập Nginx Access Log
+  - job_name: nginx-access
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx
+          service: nginx
+          log_type: access
+          env: production
+          __path__: /var/log/nginx/gallery_access.log
+
+  # 2. Thu thập Nginx Error Log
+  - job_name: nginx-error
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx-error
+          service: nginx
+          log_type: error
+          env: production
+          __path__: /var/log/nginx/gallery_error.log
+
+  # 3. Thu thập PHP / Apache Error Log
+  - job_name: php-error
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: php-error
+          service: app
+          log_type: error
+          env: production
+          __path__: /var/log/apache2/php_error.log

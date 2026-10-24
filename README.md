@@ -12,7 +12,7 @@
 
 Hệ thống Thư viện Ảnh Gallery là ứng dụng web cho phép người dùng quản lý album ảnh, tải lên hình ảnh an toàn đa lớp, phân loại theo danh mục và tạo liên kết chia sẻ công khai có bảo vệ bằng token ngẫu nhiên.
 
-Hệ thống được đóng gói và vận hành hoàn toàn tự động bằng **Docker Compose**, tuân thủ kiến trúc nhiều lớp (multi-tier), reverse proxy an toàn và tích hợp đầy đủ hệ sinh thái giám sát metrics (**Prometheus + Grafana + Exporters**) và thu thập log.
+Hệ thống được đóng gói và vận hành hoàn toàn tự động bằng **Docker Compose**, tuân thủ kiến trúc nhiều lớp (multi-tier), reverse proxy an toàn và tích hợp đầy đủ hệ sinh thái giám sát metrics (**Prometheus + Grafana + Exporters**) và thu thập log tập trung (**Grafana Loki + Promtail**).
 
 ### Kiến trúc tổng thể (Architecture Overview)
 
@@ -40,7 +40,7 @@ Hệ thống được đóng gói và vận hành hoàn toàn tự động bằn
                     └───────────────┘
 
 ════════════════════════════════════════════════════════════════════════════════════════
-                        HỆ THỐNG GIÁM SÁT (MONITORING STACK)
+                        HỆ THỐNG GIÁM SÁT & NHẬT KÝ (OBSERVABILITY STACK)
 ════════════════════════════════════════════════════════════════════════════════════════
 
   [ cAdvisor ]              [ nginx-exporter ]          [ mysqld-exporter ]
@@ -53,9 +53,21 @@ Hệ thống được đóng gói và vận hành hoàn toàn tự động bằn
                          │  Prometheus Server  │ (Cổng 9090, lưu trữ time-series)
                          └──────────┬──────────┘
                                     │
-                                    ▼ (Khai báo tự động Datasource)
-                         ┌─────────────────────┐
-                         │   Grafana Server    │ (Cổng 3000, Dashboards trực quan hóa)
+                                    │
+   [ File Log Nginx & App ]         │
+              │                     │
+              ▼                     │
+        ┌───────────┐               │
+        │ Promtail  │               │
+        └─────┬─────┘               │
+              │ (Đẩy log theo batch)│
+              ▼                     │
+        ┌───────────┐               │
+        │   Loki    │ (Cổng 3100)   │
+        └─────┬─────┘               │
+              │                     ▼ (Khai báo tự động Datasources & Dashboards)
+              │          ┌─────────────────────┐
+              └─────────►│   Grafana Server    │ (Cổng 3000, 12 Panels Metrics & Logs)
                          └─────────────────────┘
 ```
 
@@ -73,11 +85,16 @@ Hệ thống được đóng gói và vận hành hoàn toàn tự động bằn
 | **mysqld-exporter**| `gallery_mysqld_exporter` | `prom/mysqld-exporter:v0.15.1` | Nội bộ (`9104`) | `backend`, `monitoring` | Thu thập metrics CSDL với tài khoản tối thiểu `exporter` |
 | **cadvisor** | `gallery_cadvisor` | `gcr.io/cadvisor/cadvisor:v0.49.1` | Nội bộ (`8080`) | `monitoring` | Thu thập chỉ số CPU, RAM, Network của từng container |
 | **Prometheus** | `gallery_prometheus` | `prom/prometheus:v2.51.2` | `127.0.0.1:9090` | `monitoring` | Máy chủ trung tâm lưu trữ và truy vấn time-series metrics |
-| **Grafana** | `gallery_grafana` | `grafana/grafana:10.4.2` | `3000` | `monitoring` | Giao diện hiển thị Dashboard giám sát tổng thể hệ thống |
+| **Grafana** | `gallery_grafana` | `grafana/grafana:10.4.2` | `3000` | `monitoring` | Bảng điều khiển tích hợp hiển thị Metrics & Live Logs |
+| **Loki** | `gallery_loki` | `grafana/loki:2.9.8` | `127.0.0.1:3100` | `monitoring` | Lưu trữ và lập chỉ mục Log phân tán theo nhãn |
+| **Promtail** | `gallery_promtail` | `grafana/promtail:2.9.8` | Nội bộ (`9080`) | `monitoring` | Thu thập log từ file Nginx & Apache đẩy về Loki |
+
+> **Lưu ý chuyên môn về Promtail:**
+> Theo lộ trình phát triển chính thức của Grafana Labs, Promtail đã công bố kế hoạch dừng hỗ trợ (End of Life - EOL) từ ngày 02/03/2026 để chuyển sang Grafana Alloy. Đồ án học phần sử dụng phiên bản ổn định `grafana/promtail:2.9.8` theo đúng chuẩn yêu cầu của đề tài, đồng thời đảm bảo tính sẵn sàng nâng cấp kiến trúc trong tương lai.
 
 ---
 
-## 3. Cấu trúc Thư mục
+## 3. Cấu trúc Thư mục Dự án
 
 ```text
 DTC245200753/
@@ -98,20 +115,30 @@ DTC245200753/
 │       └── index.php                           # Trang chủ tổng quan & hạ tầng
 ├── database/
 │   └── init.sql                                # Khởi tạo CSDL, ràng buộc khóa ngoại, tài khoản exporter
+├── logging/                                    # Cấu hình hệ thống thu thập Log
+│   ├── loki/
+│   │   └── loki-config.yaml                    # Cấu hình Grafana Loki (Filesystem, 7d retention)
+│   └── promtail/
+│       └── promtail-config.yaml                # Cấu hình Promtail (nhãn low-cardinality)
 ├── monitoring/
 │   ├── prometheus/
 │   │   └── prometheus.yml                      # Cấu hình chu kỳ cào và 4 nhóm targets
 │   └── grafana/
 │       └── provisioning/                       # Tự động hóa Grafana (Provisioning as Code)
-│           ├── datasources/datasources.yml     # Khai báo tự động Datasource Prometheus
+│           ├── datasources/datasources.yml     # Nạp tự động Prometheus & Loki datasources
 │           └── dashboards/
 │               ├── dashboards.yml              # Khai báo provider nạp dashboard
-│               └── json/gallery_dashboard.json # Dashboard 10 biểu đồ giám sát thực tế
+│               └── json/gallery_dashboard.json # Dashboard 12 panels tích hợp Metrics & Logs
 ├── nginx/
-│   ├── nginx.conf                              # Cấu hình chính Nginx và định dạng log
+│   ├── nginx.conf                              # Cấu hình chính Nginx và định dạng log chi tiết
 │   └── conf.d/default.conf                     # Cấu hình Reverse Proxy & Security Headers
+├── tests/                                      # Bộ kịch bản kiểm thử tự động
+│   ├── test_milestone1.ps1                     # Kiểm thử Chặng 1 (Hạ tầng web & CSDL)
+│   ├── test_stage2.ps1                         # Kiểm thử Chặng 2 (Nghiệp vụ thư viện ảnh)
+│   ├── test_stage3_monitoring.ps1              # Kiểm thử Chặng 3 (Metrics Prometheus & Grafana)
+│   └── test_stage4_logging.ps1                 # Kiểm thử Chặng 4 (Thu thập Log & LogQL)
 ├── .env.example                                # Mẫu biến môi trường
-├── compose.yaml                                # Điều phối Docker Compose toàn diện
+├── compose.yaml                                # Điều phối Docker Compose toàn diện 11 containers
 └── README.md                                   # Tài liệu hướng dẫn sử dụng và kiểm thử
 ```
 
@@ -133,7 +160,12 @@ docker compose up -d --build
 ```bash
 docker compose ps
 ```
-Đảm bảo tất cả 9 container đều ở trạng thái `Up` hoặc `Up (healthy)`.
+Đảm bảo tất cả 11 container đều ở trạng thái `Up` hoặc `Up (healthy)`.
+
+### Bước 3: Chạy Kiểm thử Tự động Chặng 4
+```powershell
+pwsh -File ./tests/test_stage4_logging.ps1
+```
 
 ---
 
@@ -150,21 +182,46 @@ docker compose ps
   - Máy chủ: `mysql`
   - Người dùng: `gallery_user`
   - Mật khẩu: `Gallery_SecurePass_2026!`
-- **Bảng điều khiển Giám sát Grafana:**
+- **Bảng điều khiển Giám sát Grafana (Metrics & Logs):**
   [http://localhost:3000](http://localhost:3000)
   - Tên đăng nhập: `admin`
   - Mật khẩu: `Admin@Grafana2026!`
   - Dashboard: Vào menu **Dashboards** $\rightarrow$ chọn thư mục **Gallery Monitoring** $\rightarrow$ **Hệ Thống Thư Viện Ảnh Gallery - Giám Sát Tổng Hợp**
 - **Máy chủ Prometheus:**
   [http://localhost:9090](http://localhost:9090)
-  - Xem danh sách Targets: [http://localhost:9090/targets](http://localhost:9090/targets)
+  - Danh sách Targets: [http://localhost:9090/targets](http://localhost:9090/targets)
+- **API Máy chủ Loki:**
+  [http://localhost:3100/ready](http://localhost:3100/ready)
 - **Tài khoản Quản trị viên (Admin) mặc định:**
   - Username: `admin`
   - Mật khẩu: `Admin@123456`
 
 ---
 
-## 6. Hướng dẫn Sao lưu & Phục hồi CSDL
+## 6. Danh mục Truy vấn LogQL Tiêu biểu
+
+Hệ thống hỗ trợ truy vấn nhật ký trực tiếp qua Grafana Explore hoặc API Loki:
+
+1. **Truy vấn theo nhãn dịch vụ (Stream filter):**
+   ```logql
+   {service="nginx"}
+   ```
+2. **Lọc dòng log phát sinh mã lỗi HTTP (Security & Failure filter):**
+   ```logql
+   {service="nginx"} |~ "(403|404|500)"
+   ```
+3. **Lọc nhật ký tải ảnh lên (Action filter):**
+   ```logql
+   {service="nginx"} |= "POST /upload.php"
+   ```
+4. **Đo tần suất yêu cầu HTTP từ nhật ký (Rate metric):**
+   ```logql
+   rate({service="nginx"}[1m])
+   ```
+
+---
+
+## 7. Hướng dẫn Sao lưu & Phục hồi CSDL
 
 ### Sao lưu (Backup):
 ```bash
@@ -178,9 +235,9 @@ docker compose exec -T mysql mysql -u gallery_user -pGallery_SecurePass_2026! ga
 
 ---
 
-## 7. Lệnh Dừng Hệ thống
+## 8. Lệnh Dừng Hệ thống
 
-- Dừng hệ thống nhưng **giữ nguyên dữ liệu** (ảnh, CSDL, lịch sử metrics trong volume):
+- Dừng hệ thống nhưng **giữ nguyên dữ liệu** (ảnh, CSDL, lịch sử metrics & logs):
   ```bash
   docker compose down
   ```
