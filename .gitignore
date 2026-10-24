@@ -1,0 +1,23 @@
+# Environment & Secrets
+.env
+.env.local
+*.pem
+*.key
+
+# Persistent storage & Runtime files
+uploads/*
+!uploads/.gitkeep
+mysql_data/
+grafana_data/
+loki_data/
+prometheus_data/
+
+# Logs
+*.log
+logs/
+
+# Operating System files
+Thumbs.db
+ehthumbs.db
+.DS_Store
+*.tmp

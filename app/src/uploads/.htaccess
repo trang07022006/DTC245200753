@@ -1,0 +1,8 @@
+# Chặn thực thi mã PHP trong thư mục uploads (Hardening)
+<FilesMatch "\.(php|php5|php7|php8|phtml|phar|pl|py|cgi|sh)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Không cho phép duyệt danh sách file
+Options -Indexes

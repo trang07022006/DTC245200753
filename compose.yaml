@@ -1,0 +1,99 @@
+# -------------------------------------------------------------
+# DTC245200753 - Lê Minh Trang - CNTT K23M
+# Đề 31: Hệ thống Thư viện Ảnh Gallery
+# Docker Compose Orchestration (compose.yaml)
+# -------------------------------------------------------------
+
+name: gallery-dtc245200753
+
+services:
+  # 1. Cơ sở dữ liệu MySQL 8.0
+  mysql:
+    image: mysql:8.0.36
+    container_name: gallery_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - backend
+    # Không publish cổng 3306 ra ngoài máy chủ để đảm bảo an toàn (Hardening)
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  # 2. Ứng dụng Gallery Backend (PHP 8.2 + Apache)
+  app:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: gallery_app
+    restart: unless-stopped
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${MYSQL_DATABASE}
+      DB_USER: ${MYSQL_USER}
+      DB_PASS: ${MYSQL_PASSWORD}
+      UPLOAD_MAX_BYTES: ${UPLOAD_MAX_BYTES}
+    volumes:
+      - uploads_data:/var/www/html/uploads
+    networks:
+      - frontend
+      - backend
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # 3. Giao diện quản trị Database phpMyAdmin
+  phpmyadmin:
+    image: phpmyadmin:5.2.1-apache
+    container_name: gallery_phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: ${MYSQL_USER}
+      PMA_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      # Bind vào localhost để tránh mở công khai ra ngoài mạng (Hardening)
+      - "127.0.0.1:${PMA_PORT:-8082}:80"
+    networks:
+      - backend
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # 4. Nginx Reverse Proxy (Cổng vào duy nhất tiếp nhận HTTP từ Client)
+  nginx:
+    image: nginx:1.25.5-alpine
+    container_name: gallery_nginx
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-80}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+    networks:
+      - frontend
+    depends_on:
+      - app
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    name: gallery_mysql_data
+  uploads_data:
+    name: gallery_uploads_data
