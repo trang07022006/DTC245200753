@@ -1,7 +1,7 @@
 # -------------------------------------------------------------
 # DTC245200753 - Lê Minh Trang - CNTT K23M
 # Đề 31: Hệ thống Thư viện Ảnh Gallery
-# Docker Compose Orchestration (compose.yaml)
+# Docker Compose Orchestration (compose.yaml) - Tích hợp Monitoring
 # -------------------------------------------------------------
 
 name: gallery-dtc245200753
@@ -83,13 +83,107 @@ services:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
     networks:
       - frontend
+      - monitoring
     depends_on:
       - app
+
+  # -------------------------------------------------------------
+  # HỆ THỐNG GIÁM SÁT (MONITORING STACK - PROMETHEUS & EXPORTERS)
+  # -------------------------------------------------------------
+
+  # 5. Nginx Prometheus Exporter (Thu thập số liệu Web Server từ /stub_status)
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:1.1.0
+    container_name: gallery_nginx_exporter
+    restart: unless-stopped
+    command:
+      - -nginx.scrape-uri=http://nginx:80/stub_status
+    networks:
+      - monitoring
+    depends_on:
+      - nginx
+
+  # 6. MySQLd Exporter (Thu thập số liệu CSDL với quyền tối thiểu)
+  mysqld-exporter:
+    image: prom/mysqld-exporter:v0.15.1
+    container_name: gallery_mysqld_exporter
+    restart: unless-stopped
+    command:
+      - --config.my-cnf=/etc/mysqld_exporter/.my.cnf
+    volumes:
+      - ./monitoring/mysqld_exporter/.my.cnf:/etc/mysqld_exporter/.my.cnf:ro
+    networks:
+      - backend
+      - monitoring
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # 7. cAdvisor (Thu thập tài nguyên phần cứng CPU/RAM của các Container)
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: gallery_cadvisor
+    restart: unless-stopped
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=5s
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks:
+      - monitoring
+
+  # 8. Prometheus Server (Thu thập và lưu trữ Time-Series Metrics)
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    container_name: gallery_prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+      - --web.enable-lifecycle
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    networks:
+      - monitoring
+    depends_on:
+      - nginx-exporter
+      - mysqld-exporter
+      - cadvisor
+
+  # 9. Grafana (Trực quan hóa Dashboards)
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: gallery_grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: Admin@Grafana2026!
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_SERVE_FROM_SUB_PATH: "false"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - monitoring
+    depends_on:
+      - prometheus
 
 networks:
   frontend:
     driver: bridge
   backend:
+    driver: bridge
+  monitoring:
     driver: bridge
 
 volumes:
@@ -97,3 +191,7 @@ volumes:
     name: gallery_mysql_data
   uploads_data:
     name: gallery_uploads_data
+  prometheus_data:
+    name: gallery_prometheus_data
+  grafana_data:
+    name: gallery_grafana_data

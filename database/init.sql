@@ -82,3 +82,10 @@ INSERT IGNORE INTO `categories` (`id`, `name`) VALUES
 -- Album mẫu
 INSERT IGNORE INTO `albums` (`id`, `name`, `description`) VALUES
 (1, 'Album Khởi động Demo', 'Album dùng để kiểm thử hệ thống Gallery môn Triển khai và Quản trị Hệ thống.');
+
+-- -------------------------------------------------------------
+-- Tài khoản Exporter cho Prometheus Giám sát (Hardening & Least Privilege)
+-- -------------------------------------------------------------
+CREATE USER IF NOT EXISTS 'exporter'@'%' IDENTIFIED BY 'Exporter_Pass_2026!' WITH MAX_USER_CONNECTIONS 3;
+GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'%';
+FLUSH PRIVILEGES;

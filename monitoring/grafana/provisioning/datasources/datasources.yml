@@ -1,0 +1,17 @@
+# -------------------------------------------------------------
+# DTC245200753 - Đề 31: Hệ thống Thư viện Ảnh Gallery
+# Grafana Datasources Provisioning (monitoring/grafana/provisioning/datasources/datasources.yml)
+# -------------------------------------------------------------
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: 5s
+      httpMethod: POST

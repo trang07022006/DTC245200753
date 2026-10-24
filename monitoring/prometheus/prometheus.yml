@@ -1,0 +1,29 @@
+# -------------------------------------------------------------
+# DTC245200753 - Đề 31: Hệ thống Thư viện Ảnh Gallery
+# Prometheus Configuration (monitoring/prometheus/prometheus.yml)
+# -------------------------------------------------------------
+
+global:
+  scrape_interval: 5s     # Tần suất thu thập metrics (5 giây)
+  evaluation_interval: 5s
+
+scrape_configs:
+  # 1. Tự giám sát máy chủ Prometheus
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # 2. Giám sát Web Server Nginx (Nginx Prometheus Exporter)
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx-exporter:9113']
+
+  # 3. Giám sát Cơ sở dữ liệu MySQL 8.0 (MySQLd Exporter với quyền tối thiểu)
+  - job_name: 'mysql'
+    static_configs:
+      - targets: ['mysqld-exporter:9104']
+
+  # 4. Giám sát Tài nguyên Container CPU/RAM/Network (cAdvisor)
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']

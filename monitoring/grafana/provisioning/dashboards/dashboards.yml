@@ -1,0 +1,18 @@
+# -------------------------------------------------------------
+# DTC245200753 - Đề 31: Hệ thống Thư viện Ảnh Gallery
+# Grafana Dashboards Provider Provisioning
+# -------------------------------------------------------------
+
+apiVersion: 1
+
+providers:
+  - name: 'Gallery System Monitoring'
+    orgId: 1
+    folder: 'Gallery Monitoring'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/json
+      foldersFromFilesStructure: false
