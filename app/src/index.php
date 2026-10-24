@@ -1,157 +1,145 @@
 <?php
 /**
  * DTC245200753 - Đề 31: Hệ thống Thư viện Ảnh Gallery
- * Trang chủ kiểm tra nền tảng triển khai (Milestone 1)
+ * Trang chủ tổng quan & Kiểm tra nền tảng hệ thống (index.php)
  */
 
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/includes/auth.php';
 
 $dbStatus = 'Đang kiểm tra...';
 $dbConnected = false;
-$stats = ['albums' => 0, 'photos' => 0, 'categories' => 0];
+$stats = ['albums' => 0, 'photos' => 0, 'categories' => 0, 'shares' => 0];
 
 try {
     $pdo = getDatabaseConnection();
     $dbConnected = true;
     $dbStatus = 'Kết nối thành công (MySQL 8.0)';
 
-    // Thống kê sơ bộ
     $stats['albums'] = (int)$pdo->query("SELECT COUNT(*) FROM `albums`")->fetchColumn();
     $stats['photos'] = (int)$pdo->query("SELECT COUNT(*) FROM `photos`")->fetchColumn();
     $stats['categories'] = (int)$pdo->query("SELECT COUNT(*) FROM `categories`")->fetchColumn();
+    $stats['shares'] = (int)$pdo->query("SELECT COUNT(*) FROM `share_links` WHERE `revoked_at` IS NULL")->fetchColumn();
 } catch (Exception $e) {
     $dbStatus = 'Lỗi kết nối CSDL: ' . htmlspecialchars($e->getMessage());
 }
+
+$pageTitle = 'Trang Chủ Tổng Quan';
+require_once __DIR__ . '/includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đề 31 - Hệ thống Thư viện Ảnh Gallery | DTC245200753</title>
-    <style>
-        :root {
-            --primary: #2563eb;
-            --primary-hover: #1d4ed8;
-            --bg: #0f172a;
-            --card-bg: #1e293b;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --success: #10b981;
-            --danger: #ef4444;
-            --border: #334155;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; }
-        body { background-color: var(--bg); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; }
-        header { background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
-        .logo { font-size: 1.25rem; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 0.5rem; }
-        .badge { background: #0369a1; color: #e0f2fe; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
-        main { flex: 1; max-width: 1100px; width: 100%; margin: 2rem auto; padding: 0 1rem; }
-        .hero { text-align: center; margin-bottom: 2.5rem; }
-        .hero h1 { font-size: 2.2rem; margin-bottom: 0.5rem; background: linear-gradient(to right, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .hero p { color: var(--text-muted); font-size: 1.05rem; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
-        .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3); }
-        .card h2 { font-size: 1.2rem; margin-bottom: 1rem; color: #38bdf8; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
-        .status-pill { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.75rem; border-radius: 9999px; font-weight: 600; font-size: 0.85rem; }
-        .status-pill.success { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
-        .status-pill.danger { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
-        .info-row { display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px dashed rgba(255,255,255,0.08); font-size: 0.95rem; }
-        .info-label { color: var(--text-muted); }
-        .info-value { font-weight: 500; }
-        .btn-group { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1.5rem; }
-        .btn { display: inline-flex; align-items: center; justify-content: center; padding: 0.65rem 1.25rem; border-radius: 8px; font-weight: 600; text-decoration: none; transition: all 0.2s; font-size: 0.95rem; }
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-primary:hover { background: var(--primary-hover); }
-        .btn-secondary { background: #334155; color: #f1f5f9; }
-        .btn-secondary:hover { background: #475569; }
-        footer { border-top: 1px solid var(--border); padding: 1.5rem; text-align: center; color: var(--text-muted); font-size: 0.85rem; }
-    </style>
-</head>
-<body>
-    <header>
-        <div class="logo">
-            <span>📷</span> Gallery System - Đề 31
-        </div>
-        <div class="badge">CNTT K23M</div>
-    </header>
 
-    <main>
-        <div class="hero">
-            <h1>Hệ Thống Thư Viện Ảnh Gallery</h1>
-            <p>Học phần: Triển khai và Quản trị Hệ thống Phần mềm</p>
-        </div>
+<div style="text-align: center; margin: 2rem 0 3rem 0;">
+    <h1 style="font-size: 2.4rem; font-weight: 800; background: linear-gradient(to right, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.5rem;">
+        Hệ Thống Thư Viện Ảnh Gallery
+    </h1>
+    <p style="color: var(--text-muted); font-size: 1.1rem; max-width: 650px; margin: 0 auto;">
+        Đề 31: Quản lý album, phân loại, tải ảnh lên an toàn đa lớp và chia sẻ qua Token ngẫu nhiên.
+    </p>
+    <div style="margin-top: 1.5rem; display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+        <a href="/gallery.php" class="btn btn-primary" style="padding: 0.75rem 1.5rem; font-size: 1rem;">
+            📸 Khám Phá Thư Viện Ảnh
+        </a>
+        <?php if (!isLoggedIn()): ?>
+            <a href="/login.php" class="btn btn-secondary" style="padding: 0.75rem 1.5rem; font-size: 1rem;">
+                🔐 Đăng Nhập Quản Trị
+            </a>
+        <?php else: ?>
+            <a href="/upload.php" class="btn btn-secondary" style="padding: 0.75rem 1.5rem; font-size: 1rem;">
+                📤 Tải Ảnh Lên Ngay
+            </a>
+        <?php endif; ?>
+    </div>
+</div>
 
-        <div class="grid">
-            <!-- Thông tin Sinh viên -->
-            <div class="card">
-                <h2>Sinh viên thực hiện</h2>
-                <div class="info-row">
-                    <span class="info-label">Họ và tên:</span>
-                    <span class="info-value">Lê Minh Trang</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Mã sinh viên:</span>
-                    <span class="info-value">DTC245200753</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Lớp:</span>
-                    <span class="info-value">CNTT K23M</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Đề tài:</span>
-                    <span class="info-value">Đề 31 - Thư viện ảnh Gallery</span>
-                </div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem;">
+    <!-- Thông tin Sinh viên -->
+    <div class="card">
+        <h2 style="font-size: 1.2rem; color: #38bdf8; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+            👤 Thông Tin Sinh Viên
+        </h2>
+        <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.95rem;">
+            <div style="display: flex; justify-content: space-between;">
+                <span style="color: var(--text-muted);">Họ và tên:</span>
+                <strong>Lê Minh Trang</strong>
             </div>
-
-            <!-- Trạng thái Dịch vụ -->
-            <div class="card">
-                <h2>Trạng thái Nền tảng (Chặng 1)</h2>
-                <div class="info-row">
-                    <span class="info-label">Nginx Reverse Proxy:</span>
-                    <span class="status-pill success">● Đang hoạt động</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">App Container (PHP):</span>
-                    <span class="status-pill success">● PHP <?= phpversion() ?></span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Cơ sở dữ liệu (MySQL):</span>
-                    <span class="status-pill <?= $dbConnected ? 'success' : 'danger' ?>">
-                        <?= $dbConnected ? '● Đã kết nối' : '○ Lỗi kết nối' ?>
-                    </span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Thư mục Uploads:</span>
-                    <span class="info-value"><?= is_writable(__DIR__ . '/uploads') ? 'Ghi được (755)' : 'Không ghi được' ?></span>
-                </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span style="color: var(--text-muted);">Mã sinh viên:</span>
+                <span class="user-tag">DTC245200753</span>
             </div>
-
-            <!-- Dữ liệu Database hiện tại -->
-            <div class="card">
-                <h2>Cơ sở dữ liệu Gallery</h2>
-                <div class="info-row">
-                    <span class="info-label">Số Album khởi tạo:</span>
-                    <span class="info-value"><?= $stats['albums'] ?> album</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Số Danh mục phân loại:</span>
-                    <span class="info-value"><?= $stats['categories'] ?> danh mục</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Tổng số ảnh hiện có:</span>
-                    <span class="info-value"><?= $stats['photos'] ?> ảnh</span>
-                </div>
-                <div class="btn-group">
-                    <a href="/health.php" target="_blank" class="btn btn-secondary">Kiểm tra Health JSON</a>
-                    <a href="http://localhost:8082" target="_blank" class="btn btn-primary">Mở phpMyAdmin</a>
-                </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span style="color: var(--text-muted);">Lớp:</span>
+                <strong>CNTT K23M</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span style="color: var(--text-muted);">Học phần:</span>
+                <span>Triển khai & Quản trị Hệ thống</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span style="color: var(--text-muted);">Đề tài tốt nghiệp:</span>
+                <span style="color: #38bdf8; font-weight: 600;">Đề 31 - Gallery</span>
             </div>
         </div>
-    </main>
+    </div>
 
-    <footer>
-        Hệ thống Triển khai & Quản trị Hệ thống Phần mềm &bull; Sinh viên Lê Minh Trang - DTC245200753 &bull; 2026
-    </footer>
-</body>
-</html>
+    <!-- Trạng thái Nền tảng -->
+    <div class="card">
+        <h2 style="font-size: 1.2rem; color: #38bdf8; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+            ⚙️ Trạng Thái Hạ Tầng
+        </h2>
+        <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.95rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: var(--text-muted);">Reverse Proxy:</span>
+                <span style="color: #34d399; font-weight: 600;">● Nginx (Port 80)</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: var(--text-muted);">Backend Server:</span>
+                <span style="color: #34d399; font-weight: 600;">● PHP <?= phpversion() ?></span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: var(--text-muted);">Cơ sở dữ liệu:</span>
+                <span style="color: <?= $dbConnected ? '#34d399' : '#f87171' ?>; font-weight: 600;">
+                    <?= $dbConnected ? '● MySQL 8.0' : '○ Lỗi kết nối' ?>
+                </span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: var(--text-muted);">Thư mục Uploads:</span>
+                <span style="color: #38bdf8; font-weight: 600;">Ghi an toàn (755)</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: var(--text-muted);">Chặn ảnh thô Nginx:</span>
+                <span style="color: #34d399; font-weight: 600;">● 403 Forbidden Bật</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dữ liệu Gallery hiện tại -->
+    <div class="card">
+        <h2 style="font-size: 1.2rem; color: #38bdf8; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+            📊 Thống Kê Thư Viện
+        </h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; text-align: center; margin-bottom: 1rem;">
+            <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border);">
+                <div style="font-size: 1.6rem; font-weight: 700; color: #38bdf8;"><?= $stats['photos'] ?></div>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">Bức ảnh</div>
+            </div>
+            <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border);">
+                <div style="font-size: 1.6rem; font-weight: 700; color: #34d399;"><?= $stats['albums'] ?></div>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">Album</div>
+            </div>
+            <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border);">
+                <div style="font-size: 1.6rem; font-weight: 700; color: #fbbf24;"><?= $stats['categories'] ?></div>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">Danh mục</div>
+            </div>
+            <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border);">
+                <div style="font-size: 1.6rem; font-weight: 700; color: #a78bfa;"><?= $stats['shares'] ?></div>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">Link Chia sẻ</div>
+            </div>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <a href="/health.php" target="_blank" class="btn btn-secondary btn-sm" style="flex: 1;">Health JSON</a>
+            <a href="http://localhost:8082" target="_blank" class="btn btn-primary btn-sm" style="flex: 1;">phpMyAdmin</a>
+        </div>
+    </div>
+</div>
+
+<?php require_once __DIR__ . '/includes/footer.php'; ?>
